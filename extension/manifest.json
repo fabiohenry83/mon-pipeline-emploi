@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Job Pipeline Clipper",
+  "version": "1.0",
+  "description": "Sauvegardez des offres d'emploi en un clic !",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ]
+}
