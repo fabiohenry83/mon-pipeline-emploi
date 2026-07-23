@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerText = "Se connecter";
     }
   });
-// ... (Garde le début de ton fichier avec les clés et la connexion) ...
 
   // 3. Bouton de Sauvegarde de l'offre
   document.getElementById('save-btn').addEventListener('click', () => {
@@ -86,10 +85,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => window.close(), 1500);
 
       } catch (error) {
-        // On affiche l'erreur exacte renvoyée par Supabase
-        alert("Erreur Supabase : " + error.message);
-        saveBtn.innerText = "Sauvegarder l'offre";
-        saveBtn.disabled = false;
+        // Si l'erreur est liée à l'expiration de la session
+        if (error.message.includes("JWT expired")) {
+          alert("Ta session a expiré. Redémarrage de l'extension pour reconnexion...");
+          // On supprime le vieux badge périmé
+          chrome.storage.local.remove('supabase_token', () => {
+            // On rafraîchit la fenêtre pour réafficher le formulaire de connexion
+            window.location.reload(); 
+          });
+        } else {
+          // Pour toutes les autres erreurs
+          alert("Erreur Supabase : " + error.message);
+          saveBtn.innerText = "Sauvegarder l'offre";
+          saveBtn.disabled = false;
+        }
       }
     });
   });

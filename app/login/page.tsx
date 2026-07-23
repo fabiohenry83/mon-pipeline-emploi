@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast'; // <-- NOUVEL IMPORT
+import toast from 'react-hot-toast';
+import { Button } from "@/components/ui/button"; // Le fameux bouton premium
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,19 +15,16 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // On connecte ou on inscrit selon le mode choisi
     const { error } = isLogin
       ? await supabase.auth.signInWithPassword({ email, password })
       : await supabase.auth.signUp({ email, password });
 
     if (error) {
-      // Le toast remplace l'ancien texte rouge
       toast.error(error.message); 
     } else {
-      // Toast de succès adapté à l'action
       toast.success(isLogin ? "Connexion réussie !" : "Compte créé avec succès !"); 
-      router.push('/'); // On renvoie vers le tableau Kanban
-      router.refresh(); // On actualise pour que Next.js lise les nouveaux cookies
+      router.push('/'); 
+      router.refresh(); 
     }
   };
 
@@ -37,15 +35,13 @@ export default function LoginPage() {
           {isLogin ? 'Connexion' : 'Créer un compte'}
         </h1>
         
-        {/* L'ancien bloc <p> d'erreur a été supprimé pour laisser faire le Toaster */}
-        
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-slate-900 outline-none"
             required
           />
           <input
@@ -53,20 +49,24 @@ export default function LoginPage() {
             placeholder="Mot de passe (6 carac. min)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-slate-900 outline-none"
             required
           />
-          <button type="submit" className="bg-blue-600 text-white font-medium p-2 rounded-md hover:bg-blue-700 transition">
+          
+          {/* NOUVEAU BOUTON SHADCN */}
+          <Button type="submit" className="w-full">
             {isLogin ? 'Se connecter' : "S'inscrire"}
-          </button>
+          </Button>
         </form>
 
-        <button 
+        {/* NOUVEAU BOUTON SHADCN (Variante "lien") */}
+        <Button 
+          variant="link" 
           onClick={() => setIsLogin(!isLogin)} 
-          className="w-full mt-4 text-sm text-blue-600 hover:underline"
+          className="w-full mt-4 text-slate-600"
         >
           {isLogin ? "Pas de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
-        </button>
+        </Button>
       </div>
     </div>
   );

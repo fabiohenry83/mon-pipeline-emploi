@@ -5,46 +5,54 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import JobCard from "./JobCard";
 import { supabase } from "@/lib/supabase";
 import toast from 'react-hot-toast';
+import Dashboard from "@/components/Dashboard";
 
-// On définit les colonnes ici maintenant
 const colonnes = [
-  { id: 'a_postuler', titre: 'À postuler', couleur: 'bg-slate-100' },
-  { id: 'envoye', titre: 'Candidature envoyée', couleur: 'bg-blue-50' },
-  { id: 'entretien', titre: 'Entretien prévu', couleur: 'bg-purple-50' },
-  { id: 'refus', titre: 'Refus', couleur: 'bg-red-50' },
-  { id: 'accepte', titre: 'Accepté !', couleur: 'bg-green-50' },
+  { id: 'a_postuler', titre: 'À postuler', style: 'bg-muted/40 border-border text-foreground' },
+  { id: 'envoye', titre: 'Candidature envoyée', style: 'bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400' },
+  { id: 'entretien', titre: 'Entretien prévu', style: 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-400' },
+  { id: 'refus_cv', titre: 'Refus (sur CV)', style: 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400' },
+  { id: 'refus_entretien', titre: 'Refus (suite entretien)', style: 'bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400' },
+  { id: 'accepte', titre: 'Accepté !', style: 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400' },
 ];
 
-export default function KanbanBoard({ initialJobs }: { initialJobs: any[] }) {
-  // 1. État local pour gérer les cartes en temps réel
+// 🌟 NOUVEAU : On ajoute isPro et userEmail aux paramètres acceptés
+export default function KanbanBoard({ 
+  initialJobs, 
+  isPro, 
+  userEmail 
+}: { 
+  initialJobs: any[]; 
+  isPro: boolean; 
+  userEmail: string; 
+}) {
   const [jobs, setJobs] = useState(initialJobs);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Synchronisation si on ajoute/supprime une carte via les autres boutons
   useEffect(() => {
     setJobs(initialJobs);
   }, [initialJobs]);
 
-  // Évite un bug visuel de Next.js au chargement
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // ---------------------------------------------------------
-  // Écoute en temps réel des ajouts via l'extension
-  // ---------------------------------------------------------
   useEffect(() => {
     const channel = supabase
       .channel('realtime-jobs')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'jobs' },
+        { event: '*', schema: 'public', table: 'jobs' }, 
         (payload) => {
-          const newJob = payload.new;
-          console.log("Nouvelle offre ajoutée via l'extension !", newJob);
-          
-          // On ajoute la nouvelle carte à la liste existante
-          setJobs((prevJobs) => [...prevJobs, newJob]);
+          if (payload.eventType === 'INSERT') {
+            setJobs((prevJobs) => [...prevJobs, payload.new]);
+          } 
+          else if (payload.eventType === 'DELETE') {
+            setJobs((prevJobs) => prevJobs.filter(job => job.id !== payload.old.id));
+          } 
+          else if (payload.eventType === 'UPDATE') {
+            setJobs((prevJobs) => prevJobs.map(job => job.id === payload.new.id ? payload.new : job));
+          }
         }
       )
       .subscribe();
@@ -53,101 +61,97 @@ export default function KanbanBoard({ initialJobs }: { initialJobs: any[] }) {
       supabase.removeChannel(channel);
     };
   }, []);
-  // ---------------------------------------------------------
 
   if (!isMounted) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        {/* Un joli cercle de chargement qui tourne */}
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
   
-  // 2. La fonction magique qui se déclenche quand on lâche une carte
   const onDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result;
 
-    // Si lâchée en dehors du tableau, on annule
     if (!destination) return;
-
-    // Si lâchée au même endroit, on annule
-    if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      return;
-    }
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStatus = destination.droppableId;
 
-    // Mise à jour visuelle immédiate (Optimistic UI) pour une fluidité parfaite
     const updatedJobs = jobs.map((job) =>
       job.id.toString() === draggableId ? { ...job, status: newStatus } : job
     );
     setJobs(updatedJobs);
 
-    // Envoi de la mise à jour à Supabase en arrière-plan
     const { error } = await supabase
       .from('jobs')
       .update({ status: newStatus })
       .eq('id', draggableId);
 
     if (error) {
-      // J'AI EFFACÉ LE console.error(error) ICI POUR NE PLUS AFFICHER LE GROS PANNEAU NOIR DE NEXT.JS
-      
-      // NOUVEAU : Toast d'erreur à la place du alert()
       toast.error("Erreur lors de la sauvegarde du déplacement.");
-      setJobs(initialJobs); // On annule visuellement en cas d'erreur
-    } else {
-      // NOUVEAU : Optionnel, un petit message de succès
-      // toast.success("Statut mis à jour !"); 
+      setJobs(initialJobs); 
     }
   };
 
+  // 🌟 NOUVEAU : On compte combien de lettres ont déjà été générées
+  const generatedLettersCount = jobs.filter((job) => job.cover_letter && job.cover_letter.trim() !== "").length;
+
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-6 overflow-x-auto pb-4">
-        {colonnes.map((colonne) => {
-          const candidaturesDeLaColonne = jobs.filter((job) => job.status === colonne.id);
+    <>
+      <Dashboard jobs={jobs} />
 
-          return (
-            <Droppable key={colonne.id} droppableId={colonne.id}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`flex-none w-80 rounded-xl p-4 ${colonne.couleur} border border-slate-200/60 flex flex-col`}
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="font-semibold text-slate-700">{colonne.titre}</h2>
-                    <span className="text-slate-400 text-sm font-medium bg-white/50 px-2 py-0.5 rounded-full">
-                      {candidaturesDeLaColonne.length}
-                    </span>
-                  </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex gap-6 overflow-x-auto pb-4">
+          {colonnes.map((colonne) => {
+            const candidaturesDeLaColonne = jobs.filter((job) => job.status === colonne.id);
 
-                  <div className="flex-1 flex flex-col gap-3 min-h-[150px]">
-                    {candidaturesDeLaColonne.map((candidature, index) => (
-                      <Draggable key={candidature.id} draggableId={candidature.id.toString()} index={index}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            // Un petit effet d'ombre quand on attrape la carte
-                            style={{ ...provided.draggableProps.style }}
-                            className="focus:outline-none"
-                          >
-                            <JobCard job={candidature} />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+            return (
+              <Droppable key={colonne.id} droppableId={colonne.id}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`flex-none w-80 rounded-xl p-4 border flex flex-col transition-colors ${colonne.style}`}
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="font-semibold">{colonne.titre}</h2>
+                      <span className="text-muted-foreground text-sm font-medium bg-background/60 px-2 py-0.5 rounded-full shadow-sm">
+                        {candidaturesDeLaColonne.length}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-3 min-h-[150px]">
+                      {candidaturesDeLaColonne.map((candidature, index) => (
+                        <Draggable key={candidature.id} draggableId={candidature.id.toString()} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              style={{ ...provided.draggableProps.style }}
+                              className={`focus:outline-none transition-shadow rounded-xl ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary/20 opacity-90' : ''}`}
+                            >
+                              {/* 🌟 NOUVEAU : On transmet les infos de limitation à la carte */}
+                              <JobCard 
+                                job={candidature} 
+                                isPro={isPro} 
+                                userEmail={userEmail} 
+                                generatedLettersCount={generatedLettersCount} 
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
                   </div>
-                </div>
-              )}
-            </Droppable>
-          );
-        })}
-      </div>
-    </DragDropContext>
+                )}
+              </Droppable>
+            );
+          })}
+        </div>
+      </DragDropContext>
+    </>
   );
 }
