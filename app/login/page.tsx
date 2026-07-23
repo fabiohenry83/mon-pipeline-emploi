@@ -41,7 +41,7 @@ export default function LoginPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-slate-900 outline-none"
+            className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-950"
             required
           />
           <input
@@ -49,7 +49,7 @@ export default function LoginPage() {
             placeholder="Mot de passe (6 carac. min)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="border border-slate-300 p-2 rounded-md focus:ring-2 focus:ring-slate-900 outline-none"
+            className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-950"
             required
           />
           
