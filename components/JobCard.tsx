@@ -285,7 +285,7 @@ export default function JobCard({ job, isPro, userEmail, generatedLettersCount }
             
             <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" size="lg">
               {/* 🛑 Remets bien TON lien Stripe avant le point d'interrogation */}
-              <Link href={`https://buy.stripe.com/test_5kQ00l64t7ln1hj3Wd8Zq00?prefilled_email=${encodeURIComponent(userEmail)}`} target="_blank">
+              <Link href={`https://buy.stripe.com/00w7sN77Z3aP9nS33cbZe00?prefilled_email=${encodeURIComponent(userEmail)}`} target="_blank">
                 Débloquer l'accès Pro - 29€
               </Link>
             </Button>
